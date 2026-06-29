@@ -2,34 +2,54 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## What this repo is
+## What this is
 
-A single self-contained static HTML page (`index.html`) — "Finance Domain — Data Engineer's Field Guide". It's a personal learning app for the repo owner, a data engineer with no finance background who is trying to break into the financial sector. The content is deliberately written for someone who already thinks like a data engineer (pipelines, schemas, ETL) but needs to build finance domain knowledge — markets, instruments, the players, and regulation/compliance — from scratch.
+A finance-domain learning app implemented as a **single self-contained HTML file** (`index.html`). No build step, no package manager, no dependencies, no backend. All HTML, CSS (in a `<style>` block), and JavaScript (in a `<script>` block at the bottom) live in that one file.
 
-There is no build system, package manager, server, or test suite; the entire app is one file with inline `<style>` and `<script>` blocks (sidebar nav, section switching, progress tracking, and quiz logic all live inline).
+It exists to teach a data engineer with no finance background the domain knowledge needed to work as a data engineer in financial services — markets, instruments, industry roles, finance-specific data modelling, risk, and regulation/compliance — explained in terms a data engineer already understands (schemas, pipelines, data quality issues), not generic finance-101 prose.
 
-The page is published via GitHub Pages from the `main` branch root. GitHub Pages requires the file to be named exactly `index.html` at the repo root to be served automatically — do not rename it.
+## Running / developing
 
-## Content structure
+There is no build or test tooling. To work on this app:
+- Open `index.html` directly in a browser, or serve it locally (e.g. `python3 -m http.server`) and visit it.
+- Reload the browser after any edit — there is no dev server with hot reload.
+- Test changes manually in-browser by clicking through the sidebar and quiz.
 
-Navigation is a `goto('<page>', this)` call per sidebar item (`<div class="nav-item" data-page="...">`), which shows/hides corresponding sections. The pages, in learning order, are:
+## Deployment
 
-1. `overview` — how the financial system fits together (banking, asset management, capital markets), framed around example data schemas per sector.
-2. `instruments` — equities, bonds, derivatives, swaps, funds; identifier traps (ISIN vs ticker), day count conventions.
-3. `markets` — exchange vs OTC, order book mechanics, trade lifecycle (order → settlement), market data types (tick, OHLCV, reference data).
-4. `participants` — buy side vs sell side, front/middle/back office, custodians, CCPs, data vendors.
-5. `data` — finance-specific data modelling rules: no floats for money, business vs calendar dates, bi-temporal modelling, multi-currency handling.
-6. `risk` — market/credit/operational/liquidity risk and the data each requires.
-7. `compliance` — MiFID II, EMIR, Basel III, GDPR-in-finance, BCBS 239, AML/KYC, regulatory timeline and DE implications.
-8. `pipelines` — position reconciliation, EOD batch processing, corporate actions, regulatory reporting, tools comparison.
-9. `quiz` — 10 applied questions written for a data engineer, not a finance student.
+Static GitHub Pages deploy from the `main` branch root, served at `https://sunilboreddy.github.io/financial_sector/`. GitHub Pages requires the file to be named exactly `index.html` at the repo root — do not rename it.
 
-Progress is tracked client-side (sidebar) and "Mark as done" advances to the next module.
+## Project docs
 
-## Working with the file
+**Every change to `index.html` — feature or bug fix, no exceptions — must be traceable through `docs/` in three phases, each referencing the previous:**
+- `docs/requirements/` — what we're building/fixing and why, never how. Small capability-focused files (one per module) with an `index.md` linking them.
+- `docs/design/` — how we'll build it (content structure, data/state model). Each design doc references the specific `docs/requirements/*.md` file(s) it implements.
+- `docs/build/` — implementation notes/changelog for the build phase. Each build doc references the specific `docs/design/*.md` file(s) it follows.
 
-- Edit `index.html` directly; there is no compilation or bundling step.
-- Keep new content consistent with the existing tone: explain finance concepts in terms a data engineer already understands (schemas, pipelines, data quality issues), not generic finance-101 prose.
-- To preview changes, open `index.html` in a browser locally (no server required) or push to `main` and check `https://sunilboreddy.github.io/financial_sector/`.
-- Keep all CSS/JS in the existing inline `<style>`/`<script>` blocks rather than introducing external files or build tooling, consistent with the single-file structure.
-- When adding a new module/page, follow the existing pattern: add a `nav-item` with a `data-page` key, a matching content section, and wire it into the `goto()` switcher and progress tracker.
+**Do not write or edit code before this chain exists for the change.** The order is always requirements → design → build → code:
+1. Write or update the requirements doc first — what's broken or wanted, and why.
+2. Write or update the design doc next, referencing that requirements doc — how it'll be implemented.
+3. Only then touch `index.html`, and write/update the build doc referencing that design doc as you go — a real changelog (what was built, deviations, verification), not a pre-written task list.
+
+This applies to bug fixes too, not just new capabilities: a one-line fix still gets a short requirements note (what was broken), a short design note (root cause + fix approach) if it's not trivial, and a build note (what changed, how it was verified) — added to the existing module's docs (e.g. a "Follow-up fix" section) rather than skipped because it's "just a bug." Don't let implementation details leak into requirements docs, and don't skip ahead in the chain even under time pressure.
+
+## Architecture
+
+Everything is in `index.html`, organized in three parts:
+
+1. **`<style>` (head)** — light, navy/gold-themed CSS using custom properties (`--navy`, `--gold`, `--teal`, etc.) defined on `:root`.
+2. **Body markup** — a fixed sidebar (`#sidebar`) with `.nav-item[data-page=...]` entries, each showing one content section. Sections are 9 modules in order: `overview`, `instruments`, `markets`, `participants`, `data`, `risk`, `compliance`, `pipelines`, `quiz`. See `docs/requirements/index.md` and `docs/design/index.md` for what each module covers and how it's built.
+3. **`<script>` (bottom)** — all app logic, plain functions and `window.*`-style globals invoked from inline `onclick=` attributes:
+   - `goto(id, el)` switches the visible section and updates the breadcrumb/done-button state.
+   - `markDone()` marks the current page complete (`completedPages` Set) and auto-advances to the next module via the `pages` array.
+   - `updateProgress()` recomputes the sidebar progress bar from `completedPages.size / pages.length`.
+   - `toggleCard(el)` expands/collapses instrument detail cards.
+   - Quiz: `quizData` (10 questions) → `buildQuiz()`, `answerQ()`, `showFeedback()`, `updateScore()`, `resetQuiz()`.
+   - **All progress/quiz state is in-memory only** — there is no `localStorage` persistence, so reloading the page resets progress. See `docs/design/index.md` before assuming otherwise.
+
+## Conventions to follow when editing
+
+- Keep everything in `index.html` — don't introduce a build step or split into modules unless explicitly asked.
+- New interactive elements created via `innerHTML` template strings that need `onclick` handlers must expose those handlers on `window`, since inline `onclick=` resolves against globals, not closures (follow the existing `goto`/`markDone`/`toggleCard` pattern).
+- New module content should follow the existing per-module framing: explain the finance concept, then state the concrete data/pipeline implication or gotcha — not abstract finance theory.
+- Any new persisted state should go through the requirements → design → build chain first, since the current build has no persistence layer to silently extend.
